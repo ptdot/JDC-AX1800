@@ -60,9 +60,8 @@ jobs:
     - name: Checkout
       uses: actions/checkout@main
 
-    - name: Clone Source Code
+- name: Clone Source Code
       run: |
-        df -hT $GITHUB_WORKSPACE
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         cd openwrt
         echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
@@ -78,26 +77,37 @@ jobs:
     - name: Load Custom Configuration
       run: |
         [ -e files ] && mv files $OPENWRT_PATH/files
-        # Chép file config vào
         cp $CONFIG_FILE $OPENWRT_PATH/.config
         cd $OPENWRT_PATH
         
-        # ÉP CHỌN DEVICE VÀ TẮT EXT4 TRƯỚC KHI DEFCONFIG
+        # ÉP CHỌN DEVICE VÀ TẮT EXT4
         sed -i 's/CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_8devices_mango-dvk=y/# CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_8devices_mango-dvk is not set/' .config
         sed -i 's/# CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdc_ax1800-pro is not set/CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdc_ax1800-pro=y/' .config
         sed -i 's/CONFIG_TARGET_ROOTFS_EXT4FS=y/# CONFIG_TARGET_ROOTFS_EXT4FS is not set/' .config
         
-        # Chạy defconfig SAU KHI đã có Feeds và đã ép config
         make defconfig
+
+    - name: Generate Variables
+      run: |
+        cd $OPENWRT_PATH
+        SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
+        echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
+        # Lấy thông tin Target sau khi đã defconfig chuẩn
+        DEVICE_TARGET=$(grep CONFIG_TARGET_BOARD .config | cut -d'"' -f2)
+        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
+        DEVICE_SUBTARGET=$(grep CONFIG_TARGET_SUBTARGET .config | cut -d'"' -f2)
+        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+
+    - name: SSH connection to Actions (Tmate)
+      uses: mxschmitt/action-tmate@v3
+      # Bạn có thể thêm if: env.SSH == 'true' nếu muốn bật tắt bằng tay
+      timeout-minutes: 30
 
     - name: Download DL Package
       run: |
         cd $OPENWRT_PATH
         make download -j8
         find dl -size -1024c -exec rm -f {} \;
-    - name: SSH connection to Actions (Tmate)
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 30 # Tự động ngắt sau 30p nếu bạn quên không tắt để tránh tốn phút của Github
 
     - name: Compile Firmware
       id: compile
