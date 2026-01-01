@@ -92,24 +92,27 @@ jobs:
         # Chạy defconfig SAU KHI đã có Feeds và đã ép config
         make defconfig
         
-    - name: Generate Variables
+- name: Generate Variables
       run: |
-        cp $CONFIG_FILE $OPENWRT_PATH/.config
         cd $OPENWRT_PATH
-        make defconfig > /dev/null 2>&1
+        # KHÔNG cp lại file config ở đây nữa vì sẽ làm mất các thay đổi của sed
+        
         SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
         echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
-        DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
+        
+        # Trích xuất thông tin từ file .config đã được chuẩn hóa
+        DEVICE_TARGET=$(grep CONFIG_TARGET_BOARD .config | awk -F '"' '{print $2}')
         echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
-        DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
+        DEVICE_SUBTARGET=$(grep CONFIG_TARGET_SUBTARGET .config | awk -F '"' '{print $2}')
         echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
 
     - name: Download DL Package
       run: |
         cd $OPENWRT_PATH
+        # Chạy lại defconfig một lần cuối cho chắc chắn trước khi tải
+        make defconfig
         make download -j8
         find dl -size -1024c -exec rm -f {} \;
-        
 
         
 
