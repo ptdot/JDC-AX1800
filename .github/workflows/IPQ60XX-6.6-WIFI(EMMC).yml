@@ -61,34 +61,13 @@ jobs:
     - name: Checkout
       uses: actions/checkout@main
 
-    - name: Clone Source Code
+- name: Clone Source Code
       run: |
-        df -hT $GITHUB_WORKSPACE
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         cd openwrt
         echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
         VERSION_INFO=$(git show -s --date=short --format="作者: %an<br/>时间: %cd<br/>内容: %s<br/>hash: %H")
         echo "VERSION_INFO=$VERSION_INFO" >> $GITHUB_ENV
-
-    - name: Generate Variables
-      run: |
-        cp $CONFIG_FILE $OPENWRT_PATH/.config
-        cd $OPENWRT_PATH
-        make defconfig > /dev/null 2>&1
-        SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
-        echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
-        DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
-        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
-        DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
-        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
-
-    - name: Cache Toolchain
-      if: env.CACHE_TOOLCHAIN == 'true'
-      uses: HiGarfield/cachewrtbuild@main
-      with:
-        ccache: false
-        mixkey: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
-        prefix: ${{ env.OPENWRT_PATH }}
 
     - name: Install Feeds
       run: |
@@ -96,25 +75,39 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    # - name: Apply patches
-    #   run: |
-    #     git config --global user.name "OpenWrt Builder"
-    #     git config --global user.email "buster-openwrt@ovvo.uk"
-    #     cd $OPENWRT_PATH/feeds/luci
-    #     wget https://raw.githubusercontent.com/openwrt-ipq60xx/patches/main/feeds/luci/0001-show-soc-status-on-luci.patch
-    #     git am 0001-show-soc-status-on-luci.patch
-
     - name: Load Custom Configuration
       run: |
         [ -e files ] && mv files $OPENWRT_PATH/files
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRT_PATH/.config
+        cp $CONFIG_FILE $OPENWRT_PATH/.config
+        cd $OPENWRT_PATH
+        
+        # ÉP CHỌN DEVICE VÀ TẮT EXT4
+        sed -i 's/CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_8devices_mango-dvk=y/# CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_8devices_mango-dvk is not set/' .config
+        sed -i 's/# CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdc_ax1800-pro is not set/CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdc_ax1800-pro=y/' .config
+        sed -i 's/CONFIG_TARGET_ROOTFS_EXT4FS=y/# CONFIG_TARGET_ROOTFS_EXT4FS is not set/' .config
+        
+        make defconfig
+
+    - name: Generate Variables
+      run: |
+        cd $OPENWRT_PATH
+        SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
+        echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
+        # Lấy thông tin Target sau khi đã defconfig chuẩn
+        DEVICE_TARGET=$(grep CONFIG_TARGET_BOARD .config | cut -d'"' -f2)
+        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
+        DEVICE_SUBTARGET=$(grep CONFIG_TARGET_SUBTARGET .config | cut -d'"' -f2)
+        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+
+    - name: SSH connection to Actions (Tmate)
+      uses: mxschmitt/action-tmate@v3
+      # Bạn có thể thêm if: env.SSH == 'true' nếu muốn bật tắt bằng tay
+      timeout-minutes: 30
 
     - name: Download DL Package
       run: |
         cd $OPENWRT_PATH
-        make defconfig
         make download -j8
-        find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
     - name: Compile Firmware
