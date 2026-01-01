@@ -145,25 +145,10 @@ jobs:
         cd $OPENWRT_PATH/bin/targets/*/*
         cat sha256sums
         cp $OPENWRT_PATH/.config build.config
-        
-        # Tạo thư mục packages để chứa các gói lẻ
-        mkdir -p packages
-        
-        # Tìm và sao chép tất cả các file .ipk hoặc .apk nếu có
-        # Sử dụng || true để script không bị dừng nếu không tìm thấy file
-        find $OPENWRT_PATH/bin/packages/ -type f \( -name "*.ipk" -o -name "*.apk" \) -exec cp {} packages/ \; 2>/dev/null || true
-        
-        # Chỉ đóng gói nếu thư mục packages có file bên trong
-        if [ "$(ls -A packages 2>/dev/null)" ]; then
-          tar -zcf Packages.tar.gz packages
-        fi
-        
-        # Dọn dẹp các file thừa
+        mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages
+        tar -zcf Packages.tar.gz packages
         rm -rf packages feeds.buildinfo version.buildinfo
-        
-        # Thiết lập đường dẫn môi trường
         echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
-
 
     - name: Upload Firmware To Artifact
       if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
