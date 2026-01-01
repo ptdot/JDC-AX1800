@@ -96,6 +96,13 @@ jobs:
         make download -j8
         find dl -size -1024c -exec rm -f {} \;
 
+    - name: SSH connection to Actions
+      uses: P3TERX/ssh2actions@main
+      if: (LITE_FREE_VERSION) # Hoặc bỏ dòng if này để luôn chạy
+      env:
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        
     - name: Compile Firmware
       id: compile
       run: |
