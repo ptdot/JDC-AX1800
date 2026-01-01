@@ -92,7 +92,7 @@ jobs:
         # Chạy defconfig SAU KHI đã có Feeds và đã ép config
         make defconfig
         
-- name: Generate Variables
+    - name: Generate Variables
       run: |
         cd $OPENWRT_PATH
         # KHÔNG cp lại file config ở đây nữa vì sẽ làm mất các thay đổi của sed
