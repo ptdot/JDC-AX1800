@@ -105,6 +105,9 @@ jobs:
         echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
         DEVICE_SUBTARGET=$(grep CONFIG_TARGET_SUBTARGET .config | awk -F '"' '{print $2}')
         echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+    - name: SSH connection to Actions (Tmate)
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30 # Tự động ngắt sau 30p nếu bạn quên không tắt để tránh tốn phút của Github
 
     - name: Download DL Package
       run: |
